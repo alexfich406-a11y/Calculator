@@ -1,6 +1,7 @@
 #include "../include/PluginLoader.h"
 #include "../include/LoadedPlugin.h"
 #include <exception>
+#include <memory>
 #include <utility>
 
 namespace fs = std::filesystem;
@@ -48,61 +49,61 @@ std::map<fs::path, PluginLoader::Snapshot> PluginLoader::scan() const {
 
 void PluginLoader::loadOne(const fs::path& file, const Snapshot& snap, std::vector<std::string>& report) {
     const std::string fileName = file.filename().string();
-    try {
-        auto plugin = LoadedPlugin::load(file);
-        std::string name = plugin->getNameFunc();
 
-        if (!registry_.addPlugin(std::move(plugin))) {
-            report.push_back("[plugins] " + fileName + ": operation '" + name + "' already exists, skipped");
-            failed_[file] = Failed{snap, true};
-            return;
-        }
-        loaded_[file] = Loaded{snap, name};
-        report.push_back("[plugins] loaded '" + name + "' from " + fileName);
+    std::unique_ptr<LoadedPlugin> plugin;
+    try {
+        plugin = LoadedPlugin::load(file);
     } catch (const std::exception& e) {
         report.push_back("[plugins] " + fileName + ": " + e.what());
         failed_[file] = Failed{snap, false};
+        return;
     } catch (...) {
         report.push_back("[plugins] " + fileName + ": unknown error");
         failed_[file] = Failed{snap, false};
+        return;
     }
+
+    const std::string name = plugin->getNameFunc();
+    if (!registry_.addPlugin(std::move(plugin))) {
+        report.push_back("[plugins] " + fileName + ": operation '" + name + "' already exists, skipped");
+        failed_[file] = Failed{snap, true};
+        return;
+    }
+    loaded_[file] = Loaded{snap, name};
+    report.push_back("[plugins] loaded '" + name + "' from " + fileName);
 }
 
 std::vector<std::string> PluginLoader::refresh()  {
     std::vector<std::string> report;
-    try {
-        const auto current = scan();
+    const auto current = scan();
 
-        // 1. Выгрузить исчезнувшие и изменённые файлы
-        bool unloaded = false;
-        for (auto it = loaded_.begin(); it != loaded_.end();) {
-            auto cur = current.find(it->first);
-            if (cur != current.end() && cur->second == it->second.snapshot) {
-                ++it;
-                continue;
-            }
-            registry_.removePlugin(it->second.name);
-            report.push_back("[plugins] unloaded '" + it->second.name + "'" +
-                             (cur != current.end() ? " (file changed)" : " (file removed)"));
-            it = loaded_.erase(it);
-            unloaded = true;
+    bool unloaded = false;
+    for (auto it = loaded_.begin(); it != loaded_.end();) {
+        auto cur = current.find(it->first);
+        if (cur != current.end() && cur->second == it->second.snapshot) {
+            ++it;
+            continue;
         }
-
-        for (auto it = failed_.begin(); it != failed_.end();) {
-            auto cur = current.find(it->first);
-            bool forget = cur == current.end() || cur->second != it->second.snapshot ||
-                          (unloaded && it->second.nameConflict);
-            if (forget) it = failed_.erase(it);
-            else ++it;
-        }
-
-        for (const auto& [file, snap] : current) {
-            if (loaded_.count(file) || failed_.count(file)) continue;
-            loadOne(file, snap, report);
-        }
-    } catch (const std::exception& e) {
-        try { report.push_back(std::string("[plugins] refresh failed: ") + e.what()); } catch (...) {}
-    } catch (...) {
+        
+        report.push_back("[plugins] unloaded '" + it->second.name + "'" +
+                            (cur != current.end() ? " (file changed)" : " (file removed)"));
+        registry_.removePlugin(it->second.name);
+        it = loaded_.erase(it);
+        unloaded = true;
     }
+
+    for (auto it = failed_.begin(); it != failed_.end();) {
+        auto cur = current.find(it->first);
+        bool forget = cur == current.end() || cur->second != it->second.snapshot ||
+                        (unloaded && it->second.nameConflict);
+        if (forget) it = failed_.erase(it);
+        else ++it;
+    }
+
+    for (const auto& [file, snap] : current) {
+        if (loaded_.count(file) || failed_.count(file)) continue;
+        loadOne(file, snap, report);
+    }
+
     return report;
 }

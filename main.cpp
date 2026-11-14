@@ -33,20 +33,26 @@ double evaluate(const std::string& line, const listOperators& registry, bool& ha
     return root ? root->calculate() : 0.0;
 }
 
-} 
+void printPluginReport(PluginLoader& loader) {
+    try {
+        for (const auto& message : loader.refresh())
+            std::cout << message << '\n';
+    } catch (const std::exception& e) {
+        std::cerr << "[plugins] refresh failed: " << e.what() << '\n';
+    } catch (...) {
+        std::cerr << "[plugins] refresh failed: unknown error\n";
+    }
+}
 
-int main(int argc, char** argv) {
-    (void)argc;
-
+int run(const char* exePath) {
     listOperators registry;
     registerBasicOperations(registry);
-    PluginLoader loader(registry, executableDir(argv[0]) / "plugins");
+    PluginLoader loader(registry, executableDir(exePath) / "plugins");
 
     std::cout << "Calculator. Type an expression, or 'exit' to quit.\n";
     std::cout << std::setprecision(15);
 
-    for (const auto& message : loader.refresh())
-        std::cout << message << '\n';
+    printPluginReport(loader);
     if (loader.loadedCount() == 0)
         std::cout << "[plugins] no plugins loaded (folder: " << loader.directory().string()
                   << "); only + - * / and () are available\n";
@@ -60,9 +66,7 @@ int main(int argc, char** argv) {
         if (command.empty()) continue;
         if (command == "exit" || command == "quit") break;
 
-        for (const auto& message : loader.refresh())
-            std::cout << message << '\n';
-
+        printPluginReport(loader);
         try {
             bool hasValue = false;
             double value = evaluate(line, registry, hasValue);
@@ -83,4 +87,17 @@ int main(int argc, char** argv) {
         }
     }
     return 0;
+}
+
+}
+
+int main(int argc, char** argv) {
+    try {
+        return run(argc > 0 ? argv[0] : "");
+    } catch (const std::exception& e) {
+        std::cerr << "[fatal] " << e.what() << '\n';
+    } catch (...) {
+        std::cerr << "[fatal] unknown error\n";
+    }
+    return 1;
 }
