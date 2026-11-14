@@ -11,8 +11,8 @@ class TempFile {
 public:
     TempFile() = default;
     explicit TempFile(std::filesystem::path p) : path_(std::move(p)) {}
-    TempFile(TempFile&& o)  : path_(std::move(o.path_)) { o.path_.clear(); }
-    TempFile& operator=(TempFile&& o)  {
+    TempFile(TempFile&& o)  noexcept: path_(std::move(o.path_))  { o.path_.clear(); }
+    TempFile& operator=(TempFile&& o) noexcept {
         if (this != &o) { remove(); path_ = std::move(o.path_); o.path_.clear(); }
         return *this;
     }
