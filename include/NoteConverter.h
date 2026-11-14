@@ -12,7 +12,7 @@ class NoteConverter {
     Note readNum(const std::string& str, std::string::const_iterator& pos);
 
     bool isAlpha(char ch) const;
-    bool isDigigt(char ch) const;
+    bool isDigit(char ch) const;
     bool is_minus_uno(const Note& note) const;
 
 public:

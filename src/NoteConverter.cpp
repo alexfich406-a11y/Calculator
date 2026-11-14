@@ -4,7 +4,7 @@
 
 NoteConverter::NoteConverter(const listOperators& lop): listOp(lop){}
 
-bool NoteConverter::isDigigt(char c) const{
+bool NoteConverter::isDigit(char c) const{
     return c >= '0' && c <= '9';
 }
 
@@ -22,7 +22,7 @@ Note NoteConverter::readFunc(const std::string& str, std::string::const_iterator
     auto st = pos;
     
     while(pos < str.cend() && isAlpha(*pos))
-        pos++;
+        ++pos;
     
     std::string name = std::string(st, pos);
     int ind = static_cast<int>(std::distance(str.cbegin(), st));
@@ -38,10 +38,10 @@ Note NoteConverter::readOperator(const std::string& str, std::string::const_iter
     auto res_pos = pos;
     
     while(pos < str.cend() && !isAlpha(*pos) &&
-     !isDigigt(*pos) && *pos != ' ' && 
+     !isDigit(*pos) && *pos != ' ' && 
      *pos != '('  && *pos != ')'  && *pos != ',')
      {
-        pos++;
+        ++pos;
         if(listOp.containsOp(std::string(st, pos)))
             res_pos = pos;
      }
@@ -57,19 +57,19 @@ Note NoteConverter::readOperator(const std::string& str, std::string::const_iter
 Note NoteConverter::readNum(const std::string& str, std::string::const_iterator& pos){
     auto st = pos;
 
-    while (pos != str.cend() && isDigigt(*pos))
-        pos++;
+    while (pos != str.cend() && isDigit(*pos))
+        ++pos;
 
     if(pos <str.cend() && *pos == '.'){
-        pos++;
-        if(pos == str.cend() || !isDigigt(*pos))
+        ++pos;
+        if(pos == str.cend() || !isDigit(*pos))
         {
             int current_ind = static_cast<int>(std::distance(str.cbegin(), pos));
             throw LexicalException("Incorrect number: digit expected after '.'", current_ind);
         }
 
-        while(pos < str.cend() && isDigigt(*pos))
-            pos++;
+        while(pos < str.cend() && isDigit(*pos))
+            ++pos;
     }
 
     std::string num = std::string(st, pos);
@@ -87,7 +87,7 @@ std::vector<Note> NoteConverter::expresionToNotes(const std::string& str){
     std::vector<Note> arrNotes;
     for (auto it = str.cbegin(); it < str.cend();){
         if(*it == ' '){
-            it++;
+            ++it;
             continue;
         }
         int pos_ind = static_cast<int>(std::distance(str.cbegin(), it));
@@ -95,23 +95,23 @@ std::vector<Note> NoteConverter::expresionToNotes(const std::string& str){
 
             case '(':
                 arrNotes.push_back(Note{KindNote::LBRACE, "(", pos_ind});
-                it++;
+                ++it;
                 break;
 
             case ')':
                 arrNotes.push_back(Note{KindNote::RBRACE, ")", pos_ind});
-                it++;
+                ++it;
                 break;
 
             case ',':
                 arrNotes.push_back(Note{KindNote::COMMA, ",", pos_ind});
-                it++;
+                ++it;
                 break;
 
             case '-':
                 if(arrNotes.empty() || is_minus_uno(arrNotes.back())){
                     arrNotes.push_back(Note{KindNote::OP, "neg", pos_ind});
-                    it++;
+                    ++it;
                     break;
                 }
                 arrNotes.push_back(readOperator(str, it));
@@ -119,7 +119,7 @@ std::vector<Note> NoteConverter::expresionToNotes(const std::string& str){
                 
 
             default:
-                if(isDigigt(*it))
+                if(isDigit(*it))
                     arrNotes.push_back(readNum(str, it));
                 else if(isAlpha(*it))
                     arrNotes.push_back(readFunc(str, it));
