@@ -6,7 +6,7 @@ class SinPlugin final : public FunctionPlugin {
 public:
     SinPlugin()
         : FunctionPlugin(Type::UNO, "sin", priority::Function,
-                         [](double x, double ) { return std::sin(x * (M_PI / 180.0)); }) {}
+                         [](double x, double ) { return std::sin(x * 3.14159265359 / 180.0); }) {}
 };
 }
 
